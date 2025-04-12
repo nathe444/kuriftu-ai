@@ -58,3 +58,16 @@ class ItineraryResponse(BaseModel):
     user_id: str
     title: str
     days: List[DayPlan]
+
+    class Config:
+        from_attributes = True
+
+class ItineraryPlanResponse(BaseModel):
+    id: int
+    user_id: str
+    title: str
+    days: List[DayPlan]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

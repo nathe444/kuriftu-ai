@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, func
 from pgvector.sqlalchemy import Vector
 
 from app.db.database import Base
@@ -22,4 +22,13 @@ class KuriftuService(Base):
     category = Column(String)  # spa, restaurant, activity, event
     location = Column(String)
     embedding = Column(Vector(settings.EMBEDDING_DIMENSION))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class ItineraryPlan(Base):
+    __tablename__ = "itinerary_plans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    days = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

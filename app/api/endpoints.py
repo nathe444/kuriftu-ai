@@ -10,6 +10,7 @@ from app.models.schemas import (
 )
 from app.services.db_service import db_service
 from app.services.ai_service import ai_service
+from app.models.schemas import ItineraryPlanResponse
 
 router = APIRouter()
 
@@ -65,57 +66,90 @@ def generate_itinerary(request: ItineraryRequest, db: Session = Depends(get_db))
         days=request.days
     )
     
-    # Parse the content into structured format
+    # Log the AI response
+    print("\nAI Response:")
+    print(itinerary_content)
+    print("\n")
+    
     try:
         days = []
         current_day = None
         current_activities = []
+        title = "Your Personalized Kuriftu Resort Itinerary"
         
-        for line in itinerary_content.split('\n'):
+        lines = itinerary_content.split('\n')
+        print("\nParsing lines:")
+        for line in lines:
+            print(f"Processing line: {line}")
             line = line.strip()
             if not line:
                 continue
             
-            if line.startswith('Day'):
+            # Extract day information
+            if 'Day' in line and ':' in line:
+                print(f"Found day: {line}")
                 if current_day and current_activities:
                     days.append({
                         'day_number': len(days) + 1,
                         'title': current_day,
-                        'activities': current_activities
+                        'activities': current_activities.copy()
                     })
-                current_day = line.split(':')[0]
+                current_day = line
                 current_activities = []
             
-            elif line.startswith('*'):
-                parts = line.split(':', 1)
-                if len(parts) == 2:
-                    time = parts[0].replace('*', '').strip()
-                    desc_parts = parts[1].split('(')
-                    if len(desc_parts) == 2:
-                        title = desc_parts[0].strip()
-                        location = desc_parts[1].replace(')', '').strip()
-                        description = desc_parts[1].split('-')[-1].strip() if '-' in desc_parts[1] else ''
+            # Extract activities
+            elif any(period in line for period in ['Morning:', 'Afternoon:', 'Evening:']):
+                try:
+                    print(f"Found activity: {line}")
+                    # Split time and details
+                    time_part, details = [x.strip() for x in line.split(':', 1)]
+                    
+                    # Parse location and description
+                    location_start = details.find('(')
+                    location_end = details.find(')')
+                    
+                    if location_start != -1 and location_end != -1:
+                        activity_title = details[:location_start].strip()
+                        location = details[location_start + 1:location_end].strip()
+                        description = details[location_end + 1:].strip('- ').strip()
                         
                         current_activities.append({
-                            'time': time,
-                            'title': title,
+                            'time': time_part,
+                            'title': activity_title,
                             'location': location,
                             'description': description
                         })
+                        print(f"Added activity: {current_activities[-1]}")
+                except Exception as e:
+                    print(f"Error parsing activity: {e}")
+                    continue
         
         # Add the last day
         if current_day and current_activities:
             days.append({
                 'day_number': len(days) + 1,
                 'title': current_day,
-                'activities': current_activities
+                'activities': current_activities.copy()
             })
         
-        return {
+        print("\nFinal days structure:")
+        print(days)
+        
+        response_data = {
             "user_id": request.user_id,
-            "title": "Your Personalized Kuriftu Resort Itinerary",
+            "title": title,
             "days": days
         }
+        
+        if days:  # Only save if we have valid days
+            db_service.save_itinerary_plan(
+                db=db,
+                user_id=request.user_id,
+                title=response_data["title"],
+                days=days
+            )
+        
+        return response_data
         
     except Exception as e:
         print(f"Error parsing itinerary: {e}")
@@ -124,3 +158,11 @@ def generate_itinerary(request: ItineraryRequest, db: Session = Depends(get_db))
             "title": "Error generating itinerary",
             "days": []
         }
+
+@router.get("/itinerary-plans/{user_id}", response_model=List[ItineraryPlanResponse])
+def get_user_itinerary_plans(user_id: str, db: Session = Depends(get_db)):
+    """Get all itinerary plans for a user"""
+    plans = db_service.get_user_plans(db, user_id)
+    if not plans:
+        raise HTTPException(status_code=404, detail="No itinerary plans found for this user")
+    return plans

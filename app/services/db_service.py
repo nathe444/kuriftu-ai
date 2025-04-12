@@ -3,7 +3,7 @@ from sqlalchemy import func
 from pgvector.sqlalchemy import Vector
 import numpy as np
 
-from app.db.models import UserInterest, KuriftuService
+from app.db.models import UserInterest, KuriftuService, ItineraryPlan  # Update this import
 from app.services.embedding_service import embedding_service
 
 class DatabaseService:
@@ -95,6 +95,31 @@ class DatabaseService:
     def get_kuriftu_services_by_category(self, db: Session, category: str):
         """Get Kuriftu services by category"""
         return db.query(KuriftuService).filter(KuriftuService.category == category).all()
+    
+    def save_itinerary_plan(self, db: Session, user_id: str, title: str, days: list):
+        """Save an itinerary plan to the database"""
+        try:
+            db_plan = ItineraryPlan(
+                user_id=user_id,
+                title=title,
+                days=days
+            )
+            db.add(db_plan)
+            db.commit()
+            db.refresh(db_plan)
+            return db_plan
+        except Exception as e:
+            print(f"Error saving plan: {e}")
+            db.rollback()
+            raise
+
+    def get_user_plans(self, db: Session, user_id: str):
+        """Get all itinerary plans for a user"""
+        try:
+            return db.query(ItineraryPlan).filter(ItineraryPlan.user_id == user_id).all()
+        except Exception as e:
+            print(f"Error getting plans: {e}")
+            raise
 
 # Create a singleton instance
 db_service = DatabaseService()
