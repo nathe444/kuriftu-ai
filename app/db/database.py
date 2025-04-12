@@ -26,40 +26,53 @@ def check_and_seed_data():
 
 def create_database():
     try:
-        # Connect to default postgres database
-        conn = psycopg2.connect(
-            host="localhost",
-            database="postgres",
-            user="postgres",
-            password="nati"
-        )
+        # For production (Render), use the DATABASE_URL directly
+        if settings.ENV == "production":
+            conn = psycopg2.connect(settings.DATABASE_URL)
+        else:
+            # Local development connection
+            conn = psycopg2.connect(
+                host="localhost",
+                database="postgres",
+                user="postgres",
+                password="nati"
+            )
+        
         conn.autocommit = True
         cursor = conn.cursor()
         
-        # Check if database exists
-        cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'kuriftu_planner'")
-        exists = cursor.fetchone()
-        
-        if not exists:
-            cursor.execute('CREATE DATABASE kuriftu_planner')
-            print("Database created successfully")
+        if settings.ENV != "production":
+            # Only create database in development
+            cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'kuriftu_planner'")
+            exists = cursor.fetchone()
+            if not exists:
+                cursor.execute('CREATE DATABASE kuriftu_planner')
+                print("Database created successfully")
         
         cursor.close()
         conn.close()
 
-        # Connect to the new database and create extension
-        conn = psycopg2.connect(
-            host="localhost",
-            database="kuriftu_planner",
-            user="postgres",
-            password="nati"
-        )
+        # Connect to the database and create extension
+        if settings.ENV == "production":
+            conn = psycopg2.connect(settings.DATABASE_URL)
+        else:
+            conn = psycopg2.connect(
+                host="localhost",
+                database="kuriftu_planner",
+                user="postgres",
+                password="nati"
+            )
+            
         conn.autocommit = True
         cursor = conn.cursor()
         
         # Create pgvector extension
         cursor.execute('CREATE EXTENSION IF NOT EXISTS vector')
         print("Vector extension created successfully")
+        
+        # Create tables
+        Base.metadata.create_all(bind=engine)
+        print("Tables created successfully")
         
         cursor.close()
         conn.close()
