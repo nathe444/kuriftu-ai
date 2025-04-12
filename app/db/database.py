@@ -1,19 +1,81 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-
+import psycopg2
 from app.core.config import settings
 
-# Create SQLAlchemy engine
+def check_and_seed_data():
+    try:
+        db = SessionLocal()
+        # Create tables if they don't exist
+        Base.metadata.create_all(bind=engine)
+        
+        # Check if KuriftuService table is empty
+        from app.db.models import KuriftuService
+        service_count = db.query(KuriftuService).count()
+        
+        if service_count == 0:
+            print("KuriftuService table is empty. Seeding initial data...")
+            from app.db.seed_data import seed_data
+            seed_data()
+            print("Data seeding completed successfully")
+        
+        db.close()
+    except Exception as e:
+        print(f"Error checking/seeding data: {e}")
+
+def create_database():
+    try:
+        # Connect to default postgres database
+        conn = psycopg2.connect(
+            host="localhost",
+            database="postgres",
+            user="postgres",
+            password="nati"
+        )
+        conn.autocommit = True
+        cursor = conn.cursor()
+        
+        # Check if database exists
+        cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'kuriftu_planner'")
+        exists = cursor.fetchone()
+        
+        if not exists:
+            cursor.execute('CREATE DATABASE kuriftu_planner')
+            print("Database created successfully")
+        
+        cursor.close()
+        conn.close()
+
+        # Connect to the new database and create extension
+        conn = psycopg2.connect(
+            host="localhost",
+            database="kuriftu_planner",
+            user="postgres",
+            password="nati"
+        )
+        conn.autocommit = True
+        cursor = conn.cursor()
+        
+        # Create pgvector extension
+        cursor.execute('CREATE EXTENSION IF NOT EXISTS vector')
+        print("Vector extension created successfully")
+        
+        cursor.close()
+        conn.close()
+        
+    except Exception as e:
+        print(f"Error in database setup: {e}")
+
+# Create engine
 engine = create_engine(settings.DATABASE_URL)
-
-# Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create base class for models
 Base = declarative_base()
 
-# Dependency to get DB session
+# Initialize database and seed data
+create_database()
+check_and_seed_data()
+
 def get_db():
     db = SessionLocal()
     try:

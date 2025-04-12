@@ -37,9 +37,7 @@ class DatabaseService:
             db.refresh(user_interest)
             return user_interest
     
-    def add_kuriftu_service(self, db: Session, name: str, description: str, category: str = None, location: str = None):
-        """Add a Kuriftu service with embedding"""
-        # Generate embedding from name and description
+    def add_kuriftu_service(self, db: Session, name: str, description: str, category: str = None, location: str = None, price: int = 0, coinValue: int = 0):
         text_to_embed = f"{name} {description}"
         if category:
             text_to_embed += f" {category}"
@@ -47,8 +45,6 @@ class DatabaseService:
             text_to_embed += f" {location}"
             
         embedding = embedding_service.get_embedding(text_to_embed)
-        
-        # Convert NumPy array to list for PostgreSQL compatibility
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else embedding
         
         service = KuriftuService(
@@ -56,6 +52,8 @@ class DatabaseService:
             description=description,
             category=category,
             location=location,
+            price=price,
+            coinValue=coinValue,
             embedding=embedding_list
         )
         
@@ -90,7 +88,20 @@ class DatabaseService:
     
     def get_all_kuriftu_services(self, db: Session, skip: int = 0, limit: int = 100):
         """Get all Kuriftu services"""
-        return db.query(KuriftuService).offset(skip).limit(limit).all()
+        services = db.query(KuriftuService).offset(skip).limit(limit).all()
+        return [
+            {
+                "id": service.id,
+                "name": service.name,
+                "description": service.description,
+                "category": service.category,
+                "location": service.location,
+                "price": service.price,
+                "coinValue": service.coinValue,
+                "created_at": service.created_at
+            }
+            for service in services
+        ]
     
     def get_kuriftu_services_by_category(self, db: Session, category: str):
         """Get Kuriftu services by category"""

@@ -19,8 +19,10 @@ class KuriftuService(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
-    category = Column(String)  # spa, restaurant, activity, event
+    category = Column(String)
     location = Column(String)
+    price = Column(Integer, nullable=False)
+    coinValue = Column(Integer, nullable=False)
     embedding = Column(Vector(settings.EMBEDDING_DIMENSION))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
