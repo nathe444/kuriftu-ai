@@ -7,9 +7,6 @@ from app.core.config import settings
 def check_and_seed_data():
     try:
         db = SessionLocal()
-        # Create tables if they don't exist
-        Base.metadata.create_all(bind=engine)
-        
         # Check if KuriftuService table is empty
         from app.db.models import KuriftuService
         service_count = db.query(KuriftuService).count()
@@ -26,57 +23,41 @@ def check_and_seed_data():
 
 def create_database():
     try:
-        # For production (Render), use the DATABASE_URL directly
         if settings.ENV == "production":
-            conn = psycopg2.connect(settings.DATABASE_URL)
+            # For production, just create tables and extension
+            Base.metadata.create_all(bind=engine)
+            print("Tables created successfully")
+            
+            # Create vector extension
+            with engine.connect() as conn:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                conn.commit()
+            print("Vector extension created successfully")
         else:
-            # Local development connection
+            # Local development setup
             conn = psycopg2.connect(
                 host="localhost",
                 database="postgres",
                 user="postgres",
                 password="nati"
             )
-        
-        conn.autocommit = True
-        cursor = conn.cursor()
-        
-        if settings.ENV != "production":
-            # Only create database in development
+            conn.autocommit = True
+            cursor = conn.cursor()
+            
             cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'kuriftu_planner'")
             exists = cursor.fetchone()
             if not exists:
                 cursor.execute('CREATE DATABASE kuriftu_planner')
-                print("Database created successfully")
-        
-        cursor.close()
-        conn.close()
-
-        # Connect to the database and create extension
-        if settings.ENV == "production":
-            conn = psycopg2.connect(settings.DATABASE_URL)
-        else:
-            conn = psycopg2.connect(
-                host="localhost",
-                database="kuriftu_planner",
-                user="postgres",
-                password="nati"
-            )
             
-        conn.autocommit = True
-        cursor = conn.cursor()
-        
-        # Create pgvector extension
-        cursor.execute('CREATE EXTENSION IF NOT EXISTS vector')
-        print("Vector extension created successfully")
-        
-        # Create tables
-        Base.metadata.create_all(bind=engine)
-        print("Tables created successfully")
-        
-        cursor.close()
-        conn.close()
-        
+            cursor.close()
+            conn.close()
+            
+            Base.metadata.create_all(bind=engine)
+            
+            with engine.connect() as conn:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                conn.commit()
+                
     except Exception as e:
         print(f"Error in database setup: {e}")
 
