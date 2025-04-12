@@ -10,7 +10,7 @@ class UserInterest(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, nullable=False)
     interests = Column(Text, nullable=False)
-    embedding = Column(Vector(settings.EMBEDDING_DIMENSION))
+    embedding = Column(Vector(768))  # Fixed dimension to match the actual embedding size
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class KuriftuService(Base):
@@ -23,7 +23,7 @@ class KuriftuService(Base):
     location = Column(String)
     price = Column(Integer, nullable=False)
     coinValue = Column(Integer, nullable=False)
-    embedding = Column(Vector(settings.EMBEDDING_DIMENSION))
+    embedding = Column(Vector(768))  # Fixed dimension to match the actual embedding size
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class ItineraryPlan(Base):

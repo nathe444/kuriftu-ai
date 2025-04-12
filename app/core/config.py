@@ -7,7 +7,7 @@ load_dotenv()
 class Settings:
     ENV: str = os.getenv("ENV", "development")
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:nati@localhost/kuriftu_planner")
-    EMBEDDING_DIMENSION: int = 1536  # Default dimension for text-embedding-ada-002
+    EMBEDDING_DIMENSION: int = 768  # Update to match the actual embedding dimension
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY")
     
     # Modify DATABASE_URL for production
